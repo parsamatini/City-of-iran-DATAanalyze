@@ -1,0 +1,76 @@
+!git clone https://github.com/rapidsai/rapidsai-csp-utils.git
+!python rapidsai-csp-utils/colab/pip-install.py
+!pip install ace_tools
+!pip show ace_tools
+!pip install ace_tools
+# Book Python : 
+import cudf
+cudf.__version__
+import cudf 
+df = cudf.read_csv("/content/accident.csv")
+import numpy as np
+import pandas as pd  # Use a different name for pandas
+import cudf 
+from IPython.display import display
+import ace_tools as tools
+
+
+# Reduce data volume: 
+
+df2 = df[['Severity', 
+          'Weather_Timestamp',
+          'Temperature(F)', 
+          'Wind_Chill(F)',
+          'Humidity(%)', 
+          'Pressure(in)', 
+          'Visibility(mi)', 
+          'Wind_Speed(mph)',
+          'Weather_Condition']]
+df2["Severity"] = df2["Severity"].astype(np.uint8)
+df2 = df2.dropna(thresh=df2.shape[1] - 3)
+df2['Temperature(F)'] = df2['Temperature(F)'].astype(np.float32)
+df2['Wind_Chill(F)'] = df2['Wind_Chill(F)'].astype(np.float32)
+df2['Humidity(%)'] = df2['Humidity(%)'].astype(np.int8)
+df2['Pressure(in)'] = df2['Pressure(in)'].astype(np.float32)
+df2['Visibility(mi)'] = df2['Visibility(mi)'].astype(np.int8)
+df2['Wind_Speed(mph)'] = df2['Wind_Speed(mph)'].astype(np.float32)
+df2['Wind_Speed(mph)'] = df2['Wind_Speed(mph)'].fillna(0)
+
+df2['Wind_Chill(F)'] = df2['Wind_Chill(F)'].fillna(df2['Wind_Chill(F)'].mean())
+df2['Temperature(F)'] = df2['Temperature(F)'].fillna(df2['Temperature(F)'].mean())
+df2['Humidity(%)'] = df2['Humidity(%)'].fillna(int(df2['Humidity(%)'].mean()))
+df2['Pressure(in)'] = df2['Pressure(in)'].fillna(df2['Pressure(in)'].mean())
+df2['Visibility(mi)'] = df2['Visibility(mi)'].fillna(int(df2['Visibility(mi)'].mean()))
+
+#print(df2['Weather_Condition'].nunique())
+unique_values = df['Weather_Condition'].to_pandas().unique()
+mapping = {value: i+1 for i, value in enumerate(unique_values)}
+df2['Weather_Condition'] = df2['Weather_Condition'].map(mapping)
+df2['Weather_Condition'] = df2['Weather_Condition'].fillna(0)
+df2['Weather_Condition'] = df2['Weather_Condition'].astype(np.uint8)
+df2.info()
+# time Separation for Accident:
+
+df2['Weather_Timestamp'] = df2['Weather_Timestamp'].astype('datetime64[s]')
+# month of Accident
+df2['Month'] = df2['Weather_Timestamp'].dt.month
+# Day of Accident
+df2['Day'] = df2['Weather_Timestamp'].dt.day
+# TimeH Of Accident
+df2['Hour'] = df2['Weather_Timestamp'].dt.hour
+
+df2 = df2.drop(columns=['Weather_Timestamp'])
+df2.head()
+df2['Temperature(F)'] = df2['Temperature(F)'].round(0) 
+df2['Wind_Chill(F)'] = df2['Wind_Chill(F)'].round(0) 
+df2['Pressure(in)'] = df2['Pressure(in)'].round(0) 
+
+
+df2.head(100)
+
+correlation_matrix = df2.corr()
+tools.display_dataframe_to_user(name="Correlation Matrix", dataframe=correlation_matrix.to_pandas())
+
+severity_corr = df2['Severity'].sort_values(ascending=False)  
+display(severity_corr.to_pandas())
+
